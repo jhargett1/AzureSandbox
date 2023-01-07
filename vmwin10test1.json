@@ -1,0 +1,168 @@
+{
+    "$schema": "https://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
+    "contentVersion": "1.0.0.0",
+    "parameters": {},
+    "variables": {
+        "scriptURL": {
+            "type": "https://gist.githubusercontent.com/jhargett1/7e15245c91785d3ff84b99785c84067d/raw/4944fbd8b526daa9b3bb6cf10cd72adb107178d4/azurewin10vmchromeextension.ps1"
+        }
+    },
+    "resources": [{
+        "name": "[toLower('vmwin10storagejh432')]",
+        "type": "Microsoft.Storage/storageAccounts",
+        "apiVersion": "2015-06-15",
+        "location": "[resourceGroup().location]",
+        "tags": {
+            "displayName": "vmwin10 Storage Account"
+        },
+        "properties": {
+            "accountType": "Standard_LRS"
+        }
+    },
+    {
+        "name": "vmwin10-PublicIP",
+        "type": "Microsoft.Network/publicIPAddresses",
+        "apiVersion": "2018-08-01",
+        "location": "[resourceGroup().location]",
+        "tags": {
+            "displayName": "PublicIPAddress"
+        },
+        "properties": {
+            "publicIPAllocationMethod": "Dynamic",
+            "dnsSettings": {
+                "domainNameLabel": "[toLower('vmwin10')]"
+            }
+        }
+    },
+    {
+        "name": "vmwin10-VirtualNetwork",
+        "type": "Microsoft.Network/virtualNetworks",
+        "apiVersion": "2018-08-01",
+        "location": "[resourceGroup().location]",
+        "tags": {
+            "displayName": "VirtualNetwork"
+        },
+        "properties": {
+            "addressSpace": {
+                "addressPrefixes": [
+                    "10.0.0.0/16"
+                ]
+            },
+            "subnets": [
+                {
+                    "name": "vmwin10-VirtualNetwork-Subnet",
+                    "properties": {
+                        "addressPrefix": "10.0.0.0/24"
+                    }
+                }
+            ]
+        }
+    },
+    {
+        "name": "vmwin10-NetworkInterface",
+        "type": "Microsoft.Network/networkInterfaces",
+        "apiVersion": "2018-08-01",
+        "location": "[resourceGroup().location]",
+        "dependsOn": [
+            "[resourceId('Microsoft.Network/publicIPAddresses', 'vmwin10-PublicIP')]",
+            "[resourceId('Microsoft.Network/virtualNetworks', 'vmwin10-VirtualNetwork')]"
+        ],
+        "tags": {
+            "displayName": "vmwin10 Network Interface"
+        },
+        "properties": {
+            "ipConfigurations": [
+                {
+                    "name": "ipConfig1",
+                    "properties": {
+                        "privateIPAllocationMethod": "Dynamic",
+                        "publicIPAddress": {
+                            "id": "[resourceId('Microsoft.Network/publicIPAddresses', 'vmwin10-PublicIP')]"
+                        },
+                        "subnet": {
+                            "id": "[resourceId('Microsoft.Network/virtualNetworks/subnets', 'vmwin10-VirtualNetwork', 'vmwin10-VirtualNetwork-Subnet')]"
+                        }
+                    }
+                }
+            ]
+        }
+    },
+    {
+        "apiVersion": "2017-03-30",
+        "type": "Microsoft.Compute/virtualMachines",
+        "name": "vmwin10",
+        "location": "[resourceGroup().location]",
+        "dependsOn": [
+            "[concat('Microsoft.Storage/storageAccounts/', toLower('vmwin10storagejh432'))]",
+            "Microsoft.Network/networkInterfaces/vmwin10-NetworkInterface"
+        ],
+        "tags": {
+            "displayName": "vmwin10"
+        },
+        "properties": {
+            "hardwareProfile": {
+                "vmSize": "Standard_b2s"
+            },
+            "osProfile": {
+                "computerName": "vmwin10",
+                "adminUsername": "Josh",
+                "adminPassword": "Mi77erGr0uP1!"
+            },
+            "storageProfile": {
+                "imageReference": {
+                    "publisher": "MicrosoftWindowsDesktop",
+                        "offer": "Windows-10",
+                        "sku": "20h2-ent-g2",
+                        "version": "latest"
+                },
+                "osDisk": {
+                    "name": "vmwin10OSDisk",
+                    "caching": "ReadWrite",
+                    "createOption": "FromImage"
+                }
+            },
+            "networkProfile": {
+                "networkInterfaces": [
+                    {
+                        "id": "[resourceId('Microsoft.Network/networkInterfaces', 'vmwin10-NetworkInterface')]"
+                    }
+                ]
+            },
+            "diagnosticsProfile": {
+                "bootDiagnostics": {
+                    "enabled": true,
+                    "storageUri": "[concat('http://', toLower('vmwin10storagejh432'), '.blob.core.windows.net')]"
+                }
+            }
+        },
+        "resources": [
+            {
+    "apiVersion": "2018-06-01",
+    "type": "Microsoft.Compute/virtualMachines/extensions",
+    "name": "vmwin10/config-app",
+    "location": "[resourceGroup().location]",
+    "dependsOn": [
+        "[concat('Microsoft.Compute/virtualMachines/', 'vmwin10')]"
+    ],
+    "tags": {
+        "displayName": "config-app"
+    },
+    "properties": {
+        "publisher": "Microsoft.Compute",
+        "type": "CustomScriptExtension",
+        "typeHandlerVersion": "1.10",
+        "autoUpgradeMinorVersion": true,
+        "settings": {
+            "fileUris": [
+                "https://gist.githubusercontent.com/jhargett1/7e15245c91785d3ff84b99785c84067d/raw/4944fbd8b526daa9b3bb6cf10cd72adb107178d4/azurewin10vmchromeextension.ps1"
+            ]
+        },
+        "protectedSettings": {
+            "commandToExecute": "[concat('powershell -ExecutionPolicy Unrestricted -File ', './azurewin10vmchromeextension.ps1')]"
+        }
+    }
+}
+        ]
+    }],
+    "outputs": {}
+}
